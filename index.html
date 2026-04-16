@@ -1,47 +1,110 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pothole Map</title>
+  <title>Pothole Detection Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
-
   <style>
-    #map { height: 100vh; }
+    body {
+      margin: 0;
+      font-family: Arial;
+    }
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+    .title {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: bold;
+      z-index: 1000;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 
 <body>
+
+<div class="title">🚧 Pothole Detection Map</div>
 <div id="map"></div>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCOFZ8zjLw3S1UbG3R7w8OGEEaMxlyP8lg",
-  databaseURL: "https://potholedetection-a2a3d-default-rtdb.asia-southeast1.firebasedatabase.app/"
-};
+  // 🔥 YOUR FIREBASE CONFIG
+  const firebaseConfig = {
+    apiKey: "AIzaSyCOFZ8zjLw3S1UbG3R7w8OGEEaMxlyP8lg",
+    databaseURL: "https://potholedetection-a2a3d-default-rtdb.asia-southeast1.firebasedatabase.app/"
+  };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-const map = L.map('map').setView([22.57, 88.36], 13);
+  // 🌍 Create Map (Default: India)
+  const map = L.map('map').setView([20.5937, 78.9629], 5);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map);
+  // 🗺️ Map tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-db.ref("potholes").on("child_added", (snap) => {
-  const data = snap.val();
+  // Store markers
+  let markers = [];
 
-  if (data.lat && data.lng) {
-    L.marker([data.lat, data.lng])
-      .addTo(map)
-      .bindPopup("🚧 Pothole");
+  function clearMarkers() {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
   }
-});
+
+  // 🔥 FETCH DATA FROM FIREBASE
+  db.ref("potholes").on("value", snapshot => {
+
+    clearMarkers();
+
+    const data = snapshot.val();
+
+    if (!data) {
+      console.log("No data found");
+      return;
+    }
+
+    Object.keys(data).forEach(key => {
+      const pothole = data[key];
+
+      if (pothole.lat && pothole.lng) {
+
+        const marker = L.marker([pothole.lat, pothole.lng])
+          .addTo(map)
+          .bindPopup(`
+            🚧 <b>Pothole Detected</b><br>
+            Z Change: ${pothole.zChange.toFixed(2)}<br>
+            Lat: ${pothole.lat}<br>
+            Lng: ${pothole.lng}
+          `);
+
+        markers.push(marker);
+      }
+    });
+
+  }, error => {
+    console.error("Firebase Error:", error);
+  });
+
 </script>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </body>
 </html>
